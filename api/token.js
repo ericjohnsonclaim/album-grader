@@ -1,41 +1,31 @@
-// api/token.js
-// Vercel serverless function — exchanges client credentials for a Spotify access token
-// This runs server-side so your client secret stays safe
-
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  const { code, error } = req.query
+  if (error) return res.redirect(`/?auth_error=${error}`)
 
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    return res.status(500).json({ error: 'Spotify credentials not configured' });
-  }
+  const clientId = process.env.SPOTIFY_CLIENT_ID
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
+  const redirectUri = process.env.REDIRECT_URI
 
   try {
-    const response = await fetch('https://accounts.spotify.com/api/token', {
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
       },
-      body: 'grant_type=client_credentials'
-    });
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: redirectUri })
+    })
 
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
+    const data = await tokenRes.json()
+    if (!tokenRes.ok) return res.redirect(`/?auth_error=token_failed`)
 
-    const data = await response.json();
-    // Return token + expiry so frontend can cache it
-    return res.status(200).json({
-      access_token: data.access_token,
-      expires_in: data.expires_in
-    });
+    const params = new URLSearchParams({
+      at: data.access_token,
+      rt: data.refresh_token,
+      ex: data.expires_in
+    })
+    res.redirect(`/?${params}`)
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    res.redirect(`/?auth_error=server_error`)
   }
 }
