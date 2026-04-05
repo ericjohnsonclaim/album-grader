@@ -298,9 +298,9 @@ export default function App() {
                   Login failed — please try again
                 </p>
               )}
-              <a href="/api/login" style={{ textDecoration: 'none', display: 'block' }}>
-                <button style={css.spotifyBtn}><SpotifyIcon />Continue with Spotify</button>
-              </a>
+<button style={css.spotifyBtn} onClick={() => window.location.href = '/api/login'}>
+  <SpotifyIcon />Continue with Spotify
+</button>
               <p style={{ color: 'rgba(240,235,227,0.25)', fontSize: '12px', textAlign: 'center', marginTop: '16px', fontFamily: "'DM Mono', monospace" }}>
                 Spotify Premium required
               </p>
