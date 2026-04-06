@@ -33,6 +33,8 @@ const GRADE_COLOR = {
   'F': '#f87171'
 }
 
+const SPOTIFY_GREEN = '#1db954'
+
 function extractAlbumId(url) {
   const m = url.match(/album\/([a-zA-Z0-9]+)/)
   return m ? m[1] : null
@@ -62,14 +64,20 @@ function ProgressDots({ total, current, grades }) {
   return (
     <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', padding: '0 8px' }}>
       {Array.from({ length: total }, function(_, i) {
-        const graded = grades[i] !== undefined
+        const grade = grades[i]
         const isCurrent = i === current
-        const col = graded ? GRADE_COLOR[grades[i].label] : null
+        const isSkipped = grade === 'skipped'
+        const isGraded = grade && !isSkipped
+        const col = isGraded ? GRADE_COLOR[grade.label] : null
         return (
           <div key={i} style={{
-            width: isCurrent ? '20px' : '7px', height: '7px', borderRadius: '4px',
-            background: isCurrent ? '#f0ebe3' : graded ? col : 'rgba(255,255,255,0.12)',
-            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', flexShrink: 0
+            width: isCurrent ? '20px' : '7px',
+            height: '7px',
+            borderRadius: '4px',
+            background: isCurrent ? '#f0ebe3' : isSkipped ? 'rgba(255,255,255,0.15)' : isGraded ? col : 'rgba(255,255,255,0.12)',
+            border: isSkipped ? '1px solid rgba(255,255,255,0.25)' : 'none',
+            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            flexShrink: 0
           }} />
         )
       })}
@@ -78,19 +86,33 @@ function ProgressDots({ total, current, grades }) {
 }
 
 function GradeButton({ grade, selected, onSelect }) {
-  const col = GRADE_COLOR[grade.label]
+  const [hovered, setHovered] = useState(false)
   const isSel = selected === grade.label
+  const col = GRADE_COLOR[grade.label]
+
   return (
-    <button onClick={function() { onSelect(grade) }} style={{
-      background: isSel ? 'rgba(' + (col === '#4ade80' ? '74,222,128' : col === '#60a5fa' ? '96,165,250' : col === '#fbbf24' ? '251,191,36' : col === '#f97316' ? '249,115,22' : '248,113,113') + ',0.15)' : 'rgba(255,255,255,0.03)',
-      border: '1.5px solid ' + (isSel ? col : 'rgba(255,255,255,0.07)'),
-      borderRadius: '12px', cursor: 'pointer',
-      transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      transform: isSel ? 'scale(1.12)' : 'scale(1)',
-      aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      boxShadow: isSel ? '0 0 20px ' + col + '33' : 'none',
-    }}>
-      <span style={{ fontSize: 'clamp(11px, 2.5vw, 15px)', fontWeight: 700, color: isSel ? col : 'rgba(240,235,227,0.5)', transition: 'color 0.15s' }}>
+    <button
+      onClick={function() { onSelect(grade) }}
+      onMouseEnter={function() { setHovered(true) }}
+      onMouseLeave={function() { setHovered(false) }}
+      style={{
+        background: isSel ? 'rgba(' + (col === '#4ade80' ? '74,222,128' : col === '#86efac' ? '134,239,172' : col === '#60a5fa' ? '96,165,250' : col === '#93c5fd' ? '147,197,253' : col === '#fbbf24' ? '251,191,36' : col === '#fcd34d' ? '252,211,77' : col === '#f97316' ? '249,115,22' : col === '#fb923c' ? '251,146,60' : '248,113,113') + ',0.15)' : 'rgba(255,255,255,0.03)',
+        border: '1.5px solid ' + (isSel ? col : 'rgba(255,255,255,0.07)'),
+        borderRadius: '12px',
+        cursor: 'pointer',
+        transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        transform: isSel ? 'scale(1.12)' : 'scale(1)',
+        aspectRatio: '1',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: isSel ? '0 0 20px ' + col + '33' : 'none',
+      }}
+    >
+      <span style={{
+        fontSize: 'clamp(11px, 2.5vw, 15px)',
+        fontWeight: 700,
+        color: isSel ? col : hovered ? SPOTIFY_GREEN : '#ffffff',
+        transition: 'color 0.15s'
+      }}>
         {grade.label}
       </span>
     </button>
@@ -114,7 +136,7 @@ const css = {
   inputLabel: { display: 'block', fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.35)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px' },
   input: { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '14px 16px', color: '#f0ebe3', fontSize: '14px', outline: 'none', fontFamily: "'DM Mono', monospace", boxSizing: 'border-box' },
   primaryBtn: { width: '100%', background: '#f0ebe3', border: 'none', borderRadius: '14px', padding: '15px', color: '#0d0d0d', fontSize: '15px', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.02em', marginTop: '12px' },
-  spotifyBtn: { width: '100%', background: '#1db954', border: 'none', borderRadius: '14px', padding: '15px', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' },
+  spotifyBtn: { width: '100%', background: SPOTIFY_GREEN, border: 'none', borderRadius: '14px', padding: '15px', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' },
   ghostBtn: { width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '14px', color: 'rgba(240,235,227,0.4)', fontSize: '14px', cursor: 'pointer', marginTop: '8px' },
   topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', flexShrink: 0 },
   iconBtn: { background: 'none', border: 'none', color: '#f0ebe3', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Mono', monospace", padding: '6px 10px', borderRadius: '8px', opacity: 0.6 }
@@ -134,6 +156,7 @@ export default function App() {
   const [urlInput, setUrlInput] = useState('')
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null)
   const hasPlayedRef = useRef(false)
 
   const { ready, error: playerError, isPlaying, position, duration, playTrack, togglePlay } = useSpotifyPlayer(accessToken)
@@ -152,7 +175,6 @@ export default function App() {
     if (stored?.at) { setAccessToken(stored.at); setRefreshToken(stored.rt); setPhase('input') }
   }, [])
 
-  // Fetch Spotify user profile once we have a token
   useEffect(function() {
     if (!accessToken || spotifyUser) return
     fetch('/api/me?at=' + accessToken)
@@ -161,7 +183,6 @@ export default function App() {
       .catch(function() {})
   }, [accessToken])
 
-  // Fetch history when we have a user
   useEffect(function() {
     if (!spotifyUser) return
     setLoadingHistory(true)
@@ -205,15 +226,24 @@ export default function App() {
   async function handleGrade(grade) {
     const newGrades = { ...grades, [currentIdx]: grade }
     setGrades(newGrades)
+    advanceOrFinish(newGrades)
+  }
+
+  function handleSkip() {
+    const newGrades = { ...grades, [currentIdx]: 'skipped' }
+    setGrades(newGrades)
+    advanceOrFinish(newGrades)
+  }
+
+  async function advanceOrFinish(newGrades) {
     if (currentIdx < album.tracks.length - 1) {
       setCurrentIdx(function(i) { return i + 1 })
     } else {
-      // Calculate final score
-      const vals = Object.values(newGrades).map(function(g) { return g.score })
-      const finalScore = avg(vals)
+      const gradedOnly = Object.values(newGrades).filter(function(g) { return g !== 'skipped' })
+      const vals = gradedOnly.map(function(g) { return g.score })
+      const finalScore = vals.length ? avg(vals) : 0
       const finalGrade = GRADE_FROM_SCORE(finalScore)
 
-      // Save to Supabase
       if (spotifyUser) {
         try {
           await fetch('/api/grades?spotify_user_id=' + spotifyUser.id, {
@@ -228,11 +258,16 @@ export default function App() {
               final_score: finalScore,
               final_grade: finalGrade,
               track_grades: album.tracks.map(function(t, i) {
-                return { name: t.name, artists: t.artists, grade: newGrades[i]?.label, score: newGrades[i]?.score }
+                const g = newGrades[i]
+                return {
+                  name: t.name,
+                  artists: t.artists,
+                  grade: g === 'skipped' ? 'skipped' : g?.label,
+                  score: g === 'skipped' ? null : g?.score
+                }
               })
             })
           })
-          // Refresh history
           const histRes = await fetch('/api/grades?spotify_user_id=' + spotifyUser.id)
           const histData = await histRes.json()
           if (Array.isArray(histData)) setHistory(histData)
@@ -255,7 +290,6 @@ export default function App() {
     setHistory([]); setPhase('login')
   }
 
-  // Scrub bar click handler
   function handleScrub(e) {
     if (!duration) return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -264,12 +298,32 @@ export default function App() {
     playTrack(album.tracks[currentIdx].uri, seekMs)
   }
 
+  // Group history by album_id, most recent first
+  function groupedHistory() {
+    const map = {}
+    history.forEach(function(item) {
+      if (!map[item.album_id]) map[item.album_id] = []
+      map[item.album_id].push(item)
+    })
+    // Sort each album's entries by date desc
+    Object.keys(map).forEach(function(id) {
+      map[id].sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at) })
+    })
+    // Return as array sorted by most recent entry
+    return Object.values(map).sort(function(a, b) {
+      return new Date(b[0].created_at) - new Date(a[0].created_at)
+    })
+  }
+
   const track = album?.tracks[currentIdx]
   const progress = duration > 0 ? (position / duration) * 100 : 0
   const currentGrade = grades[currentIdx]
 
-  const gradedTracks = album ? album.tracks.map(function(t, i) { return { track: t, grade: grades[i] } }).filter(function(x) { return x.grade }) : []
-  const finalScore = gradedTracks.length ? avg(gradedTracks.map(function(x) { return x.grade.score })) : 0
+  const gradedTracks = album
+    ? album.tracks.map(function(t, i) { return { track: t, grade: grades[i] } }).filter(function(x) { return x.grade })
+    : []
+  const gradedOnly = gradedTracks.filter(function(x) { return x.grade !== 'skipped' })
+  const finalScore = gradedOnly.length ? avg(gradedOnly.map(function(x) { return x.grade.score })) : 0
   const finalGrade = GRADE_FROM_SCORE(finalScore)
   const finalCol = GRADE_COLOR[finalGrade]
 
@@ -331,7 +385,7 @@ export default function App() {
           <div style={css.topBar}>
             <button onClick={handleBack} disabled={currentIdx === 0} style={{ ...css.iconBtn, opacity: currentIdx === 0 ? 0.2 : 0.7 }}>← Back</button>
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(240,235,227,0.4)' }}>{currentIdx + 1} / {album.tracks.length}</span>
-            <div style={{ width: '60px' }} />
+            <button onClick={handleSkip} style={{ ...css.iconBtn, opacity: 0.5 }}>Skip →</button>
           </div>
 
           <div style={{ padding: '0 24px', marginBottom: '16px' }}>
@@ -355,9 +409,8 @@ export default function App() {
                 <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.4)', fontFamily: "'DM Mono', monospace" }}>{track.artists}</div>
               </div>
 
-              {/* Scrubable progress bar */}
-              <div onClick={handleScrub} style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', marginBottom: '10px', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
-                <div style={{ height: '100%', borderRadius: '4px', background: 'linear-gradient(90deg, #1db954, #4ade80)', width: progress + '%', transition: 'width 0.5s linear', pointerEvents: 'none' }} />
+              <div onClick={handleScrub} style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', marginBottom: '10px', overflow: 'hidden', cursor: 'pointer' }}>
+                <div style={{ height: '100%', borderRadius: '4px', background: 'linear-gradient(90deg, ' + SPOTIFY_GREEN + ', #4ade80)', width: progress + '%', transition: 'width 0.5s linear', pointerEvents: 'none' }} />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -368,9 +421,9 @@ export default function App() {
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(240,235,227,0.3)' }}>{formatTime(duration)}</span>
               </div>
 
-              {track.hook_ms && (
+              {track.hook_ms > 0 && (
                 <div style={{ textAlign: 'center', marginTop: '10px' }}>
-                  <button onClick={function() { playTrack(track.uri, track.hook_ms) }} style={{ background: 'rgba(29,185,84,0.1)', border: '1px solid rgba(29,185,84,0.3)', borderRadius: '20px', padding: '5px 14px', color: '#1db954', fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
+                  <button onClick={function() { playTrack(track.uri, track.hook_ms) }} style={{ background: 'rgba(29,185,84,0.1)', border: '1px solid rgba(29,185,84,0.3)', borderRadius: '20px', padding: '5px 14px', color: SPOTIFY_GREEN, fontSize: '11px', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
                     ↩ Jump to hook
                   </button>
                 </div>
@@ -379,11 +432,13 @@ export default function App() {
           </div>
 
           <div style={{ padding: '0 24px' }}>
-            <div style={{ fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.3)', textAlign: 'center', marginBottom: '12px', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-              {currentGrade ? currentGrade.label + ' · tap to change' : 'Grade this track'}
+            <div style={{ fontSize: '11px', fontFamily: "'DM Mono', monospace", color: SPOTIFY_GREEN, textAlign: 'center', marginBottom: '12px', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+              {currentGrade && currentGrade !== 'skipped' ? currentGrade.label + ' · tap to change' : currentGrade === 'skipped' ? 'Skipped · tap to grade' : 'Grade this track'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
-              {GRADES.map(function(g) { return <GradeButton key={g.label} grade={g} selected={currentGrade?.label} onSelect={handleGrade} /> })}
+              {GRADES.map(function(g) {
+                return <GradeButton key={g.label} grade={g} selected={currentGrade !== 'skipped' ? currentGrade?.label : null} onSelect={handleGrade} />
+              })}
             </div>
           </div>
         </div>
@@ -411,15 +466,20 @@ export default function App() {
               <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span style={{ fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.3)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Track by Track</span>
               </div>
-              {gradedTracks.map(function(item, i) {
+              {album.tracks.map(function(t, i) {
+                const g = grades[i]
+                const isSkipped = g === 'skipped'
+                const col = g && !isSkipped ? GRADE_COLOR[g.label] : null
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: i < gradedTracks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: i < album.tracks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                     <div style={{ flex: 1, minWidth: 0, marginRight: '12px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.track.name}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(240,235,227,0.3)' }}>{item.grade.score}</span>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: GRADE_COLOR[item.grade.label], minWidth: '28px', textAlign: 'right' }}>{item.grade.label}</span>
+                      {!isSkipped && g && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(240,235,227,0.3)' }}>{g.score}</span>}
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: isSkipped ? 'rgba(255,255,255,0.2)' : col, minWidth: '28px', textAlign: 'right', fontFamily: "'DM Mono', monospace" }}>
+                        {isSkipped ? '—' : g ? g.label : '—'}
+                      </span>
                     </div>
                   </div>
                 )
@@ -437,7 +497,7 @@ export default function App() {
       {phase === 'history' && (
         <div style={{ ...css.screen, overflowY: 'auto' }}>
           <div style={css.topBar}>
-            <button onClick={function() { setPhase('input') }} style={css.iconBtn}>← Back</button>
+            <button onClick={function() { setSelectedHistoryItem(null); setPhase('input') }} style={css.iconBtn}>← Back</button>
             <span style={{ fontWeight: 700, fontSize: '15px' }}>My Albums</span>
             <div style={{ width: '60px' }} />
           </div>
@@ -446,20 +506,65 @@ export default function App() {
             {!loadingHistory && history.length === 0 && (
               <p style={{ color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono', monospace", fontSize: '13px', textAlign: 'center', marginTop: '40px' }}>No albums graded yet.</p>
             )}
-            {history.map(function(item, i) {
-              const col = GRADE_COLOR[item.final_grade] || '#f0ebe3'
+            {!loadingHistory && groupedHistory().map(function(entries, i) {
+              const latest = entries[0]
+              const col = GRADE_COLOR[latest.final_grade] || '#f0ebe3'
+              const isExpanded = selectedHistoryItem === latest.album_id
               return (
-                <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', marginBottom: '10px' }}>
-                  {item.album_image && <img src={item.album_image} alt={item.album_name} style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.album_name}</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.4)', fontFamily: "'DM Mono', monospace" }}>{item.album_artist} · {item.album_year}</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.25)', fontFamily: "'DM Mono', monospace", marginTop: '2px' }}>{new Date(item.created_at).toLocaleDateString()}</div>
+                <div key={i} style={{ marginBottom: '10px' }}>
+                  {/* Album row */}
+                  <div
+                    onClick={function() { setSelectedHistoryItem(isExpanded ? null : latest.album_id) }}
+                    style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid ' + (isExpanded ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)'), borderRadius: isExpanded ? '16px 16px 0 0' : '16px', cursor: 'pointer' }}
+                  >
+                    {latest.album_image && <img src={latest.album_image} alt={latest.album_name} style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{latest.album_name}</div>
+                      <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.4)', fontFamily: "'DM Mono', monospace" }}>{latest.album_artist} · {latest.album_year}</div>
+                      <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.25)', fontFamily: "'DM Mono', monospace", marginTop: '2px' }}>
+                        {entries.length > 1 ? entries.length + ' reviews' : new Date(latest.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '28px', fontWeight: 800, color: col, lineHeight: 1 }}>{latest.final_grade}</div>
+                      <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono', monospace" }}>{latest.final_score}/100</div>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '28px', fontWeight: 800, color: col, lineHeight: 1 }}>{item.final_grade}</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono', monospace" }}>{item.final_score}/100</div>
-                  </div>
+
+                  {/* Expanded: all reviews + track breakdown */}
+                  {isExpanded && (
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', borderRadius: '0 0 16px 16px', overflow: 'hidden' }}>
+                      {entries.map(function(entry, j) {
+                        const entryCol = GRADE_COLOR[entry.final_grade] || '#f0ebe3'
+                        return (
+                          <div key={j} style={{ borderBottom: j < entries.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                            {/* Review header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)' }}>
+                              <span style={{ fontSize: '12px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.4)' }}>
+                                {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.3)' }}>{entry.final_score}/100</span>
+                                <span style={{ fontSize: '18px', fontWeight: 800, color: entryCol }}>{entry.final_grade}</span>
+                              </div>
+                            </div>
+                            {/* Track grades */}
+                            {entry.track_grades && entry.track_grades.map(function(tg, k) {
+                              const tCol = tg.grade && tg.grade !== 'skipped' ? GRADE_COLOR[tg.grade] : null
+                              return (
+                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <span style={{ fontSize: '13px', color: 'rgba(240,235,227,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75%' }}>{tg.name}</span>
+                                  <span style={{ fontSize: '13px', fontWeight: 700, color: tg.grade === 'skipped' ? 'rgba(255,255,255,0.2)' : tCol, fontFamily: "'DM Mono', monospace" }}>
+                                    {tg.grade === 'skipped' ? '—' : tg.grade || '—'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })}
