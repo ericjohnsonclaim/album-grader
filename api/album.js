@@ -2,59 +2,82 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  const { id, at } = req.query
+  const id = req.query.id
+  const at = req.query.at
   if (!id || !at) return res.status(400).json({ error: 'Missing params' })
 
-  const headers = { 'Authorization': `Bearer ${at}` }
+  const headers = { 'Authorization': 'Bearer ' + at }
 
   try {
-    const albumRes = await fetch(`https://api.spotify.com/v1/albums/${id}`, { headers })
+    const albumRes = await fetch('https://api.spotify.com/v1/albums/' + id, { headers })
     if (!albumRes.ok) {
       const e = await albumRes.json()
-      return res.status(albumRes.status).json({ error: e.error?.message || 'Album not found' })
+      return res.status(albumRes.status).json({ error: e.error ? e.error.message : 'Album not found' })
     }
     const album = await albumRes.json()
 
-    let tracks = [...album.tracks.items]
+    let tracks = album.tracks.items.slice()
     let next = album.tracks.next
     while (next) {
       const p = await fetch(next, { headers })
       const page = await p.json()
-      tracks = [...tracks, ...page.items]
+      tracks = tracks.concat(page.items)
       next = page.next
     }
 
-    const trackIds = tracks.map(t => t.id).filter(Boolean)
-    const featuresRes = await fetch(
-      `https://api.spotify.com/v1/audio-features?ids=${trackIds.slice(0, 100).join(',')}`,
-      { headers }
-    )
-    const featuresData = featuresRes.ok ? await featuresRes.json() : { audio_features: [] }
-    const featuresMap = {}
-    ;(featuresData.audio_features || []).forEach(f => { if (f) featuresMap[f.id] = f })
+    const trackIds = tracks.map(function(t) { return t.id }).filter(Boolean)
+    let featuresMap = {}
+    try {
+      const featuresRes = await fetch(
+        'https://api.spotify.com/v1/audio-features?ids=' + trackIds.slice(0, 100).join(','),
+        { headers }
+      )
+      if (featuresRes.ok) {
+        const featuresData = await featuresRes.json()
+        const list = featuresData.audio_features || []
+        list.forEach(function(f) { if (f) featuresMap[f.id] = f })
+      }
+    } catch (e) {}
 
     const analysisResults = {}
-    const analysisBatch = tracks.slice(0, 20)
     await Promise.allSettled(
-      analysisBatch.map(async t => {
+      tracks.slice(0, 20).map(async function(t) {
         try {
-          const r = await fetch(`https://api.spotify.com/v1/audio-analysis/${t.id}`, { headers })
+          const r = await fetch('https://api.spotify.com/v1/audio-analysis/' + t.id, { headers })
           if (r.ok) {
             const data = await r.json()
             if (data.sections && data.sections.length > 0) {
-              const loudest = data.sections.reduce((best, s) =>
-                s.loudness > best.loudness ? s : best, data.sections[0])
+              let loudest = data.sections[0]
+              data.sections.forEach(function(s) {
+                if (s.loudness > loudest.loudness) loudest = s
+              })
               analysisResults[t.id] = Math.floor(loudest.start * 1000)
             }
           }
-        } catch {}
+        } catch (e) {}
       })
     )
 
     return res.json({
       id: album.id,
       name: album.name,
-      artist: album.artists.map(a => a.name).join(', '),
-      image: album.images[0]?.url,
-      release_year: album.release_date?.slice(0, 4),
-      tracks:
+      artist: album.artists.map(function(a) { return a.name }).join(', '),
+      image: album.images[0] ? album.images[0].url : null,
+      release_year: album.release_date ? album.release_date.slice(0, 4) : null,
+      tracks: tracks.map(function(t) {
+        return {
+          id: t.id,
+          uri: t.uri,
+          name: t.name,
+          duration_ms: t.duration_ms,
+          artists: t.artists.map(function(a) { return a.name }).join(', '),
+          track_number: t.track_number,
+          hook_ms: analysisResults[t.id] !== undefined ? analysisResults[t.id] : null,
+          energy: featuresMap[t.id] ? featuresMap[t.id].energy : null
+        }
+      })
+    })
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+}
