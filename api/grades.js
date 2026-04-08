@@ -12,10 +12,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   const { spotify_user_id } = req.query
-
   if (!spotify_user_id) return res.status(400).json({ error: 'Missing spotify_user_id' })
 
-  // GET — fetch all grades for this user
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
@@ -23,7 +21,6 @@ export default async function handler(req, res) {
         .select('*')
         .eq('spotify_user_id', spotify_user_id)
         .order('created_at', { ascending: false })
-
       if (error) return res.status(500).json({ error: error.message })
       return res.json(data)
     } catch (e) {
@@ -31,7 +28,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // POST — save a new grade
   if (req.method === 'POST') {
     try {
       const body = req.body
@@ -44,12 +40,12 @@ export default async function handler(req, res) {
           album_artist: body.album_artist,
           album_image: body.album_image,
           album_year: body.album_year,
+          album_genres: body.album_genres || [],
           final_score: body.final_score,
           final_grade: body.final_grade,
           track_grades: body.track_grades
         }])
         .select()
-
       if (error) return res.status(500).json({ error: error.message })
       return res.json(data[0])
     } catch (e) {
