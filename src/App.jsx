@@ -642,7 +642,6 @@ export default function App() {
                         return (
                           <div key={j} style={{ borderBottom: j < entries.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)' }}>
-                              <span style={{ fontSize: '12p
                             <span style={{ fontSize: '12px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.4)' }}>
                                 {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                               </span>
