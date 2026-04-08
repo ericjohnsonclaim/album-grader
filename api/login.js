@@ -7,7 +7,9 @@ export default function handler(req, res) {
     'user-read-email',
     'user-read-private',
     'user-read-playback-state',
-    'user-modify-playback-state'
+    'user-modify-playback-state',
+    'playlist-modify-public',
+    'playlist-modify-private'
   ].join(' ')
 
   const params = new URLSearchParams({
@@ -18,5 +20,5 @@ export default function handler(req, res) {
     show_dialog: 'false'
   })
 
-  res.redirect(`https://accounts.spotify.com/authorize?${params}`)
+  res.redirect('https://accounts.spotify.com/authorize?' + params)
 }
