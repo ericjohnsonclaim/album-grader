@@ -25,6 +25,23 @@ export default async function handler(req, res) {
       next = page.next
     }
 
+    // Fetch artist genres
+    const artistIds = album.artists.map(function(a) { return a.id }).slice(0, 5).join(',')
+    let genres = []
+    try {
+      const artistRes = await fetch('https://api.spotify.com/v1/artists?ids=' + artistIds, { headers })
+      if (artistRes.ok) {
+        const artistData = await artistRes.json()
+        const allGenres = []
+        artistData.artists.forEach(function(a) {
+          if (a.genres) a.genres.forEach(function(g) {
+            if (!allGenres.includes(g)) allGenres.push(g)
+          })
+        })
+        genres = allGenres.slice(0, 5)
+      }
+    } catch (e) {}
+
     const trackIds = tracks.map(function(t) { return t.id }).filter(Boolean)
     let featuresMap = {}
     try {
@@ -64,6 +81,7 @@ export default async function handler(req, res) {
       artist: album.artists.map(function(a) { return a.name }).join(', '),
       image: album.images[0] ? album.images[0].url : null,
       release_year: album.release_date ? album.release_date.slice(0, 4) : null,
+      genres: genres,
       tracks: tracks.map(function(t) {
         return {
           id: t.id,
