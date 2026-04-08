@@ -643,3 +643,81 @@ export default function App() {
                           <div key={j} style={{ borderBottom: j < entries.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)' }}>
                               <span style={{ fontSize: '12p
+                            <span style={{ fontSize: '12px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.4)' }}>
+                                {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '11px', fontFamily: "'DM Mono', monospace", color: 'rgba(240,235,227,0.3)' }}>{entry.final_score}/100</span>
+                                <span style={{ fontSize: '18px', fontWeight: 800, color: entryCol }}>{entry.final_grade}</span>
+                              </div>
+                            </div>
+                            {entry.track_grades && entry.track_grades.map(function(tg, k) {
+                              const tCol = tg.grade && tg.grade !== 'skipped' ? GRADE_COLOR[tg.grade] : null
+                              return (
+                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <span style={{ fontSize: '13px', color: 'rgba(240,235,227,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75%' }}>{tg.name}</span>
+                                  <span style={{ fontSize: '13px', fontWeight: 700, color: tg.grade === 'skipped' ? 'rgba(255,255,255,0.2)' : tCol, fontFamily: "'DM Mono', monospace" }}>
+                                    {tg.grade === 'skipped' ? '—' : tg.grade || '—'}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {phase === 'settings' && (
+        <div style={css.screen}>
+          <div style={css.topBar}>
+            <button onClick={function() { setPhase('input') }} style={css.iconBtn}>← Back</button>
+            <span style={{ fontWeight: 700, fontSize: '15px' }}>Settings</span>
+            <div style={{ width: '60px' }} />
+          </div>
+          <div style={{ padding: '0 24px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Playback Mode</div>
+                <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.4)', fontFamily: "'DM Mono', monospace" }}>Where each track starts when grading</div>
+              </div>
+              {[
+                { value: 'start', label: 'Full Song', desc: 'Always start from the beginning' },
+                { value: 'hook', label: 'Jump to Hook', desc: 'Start at the most popular section' }
+              ].map(function(option) {
+                const isSelected = settings.playback_mode === option.value
+                return (
+                  <div key={option.value} onClick={function() { handleSaveSettings({ ...settings, playback_mode: option.value }) }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', cursor: 'pointer', borderBottom: option.value === 'start' ? '1px solid rgba(255,255,255,0.06)' : 'none', background: isSelected ? 'rgba(29,185,84,0.06)' : 'transparent' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: isSelected ? 700 : 400, color: isSelected ? SPOTIFY_GREEN : '#f0ebe3' }}>{option.label}</div>
+                      <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.4)', fontFamily: "'DM Mono', monospace", marginTop: '2px' }}>{option.desc}</div>
+                    </div>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid ' + (isSelected ? SPOTIFY_GREEN : 'rgba(255,255,255,0.2)'), background: isSelected ? SPOTIFY_GREEN : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {isSelected && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0d0d0d' }} />}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {savingSettings && <p style={{ color: 'rgba(240,235,227,0.3)', fontSize: '12px', textAlign: 'center', fontFamily: "'DM Mono', monospace" }}>Saving...</p>}
+            {spotifyUser && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '16px 20px', marginTop: '16px' }}>
+                <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono', monospace", marginBottom: '4px' }}>Signed in as</div>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>{spotifyUser.name || spotifyUser.email}</div>
+              </div>
+            )}
+            <button onClick={handleLogout} style={{ ...css.ghostBtn, marginTop: '16px' }}>Sign Out</button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
