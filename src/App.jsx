@@ -214,7 +214,7 @@ const css = {
   ghostBtn: { width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '14px', color: 'rgba(240,235,227,0.4)', fontSize: '14px', cursor: 'pointer', marginTop: '8px' },
   dangerBtn: { width: '100%', background: 'transparent', border: '1px solid rgba(248,113,113,0.3)', borderRadius: '14px', padding: '14px', color: '#f87171', fontSize: '14px', cursor: 'pointer', marginTop: '8px' },
   topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', flexShrink: 0 },
-  iconBtn: { background: 'none', border: 'none', color: '#f0ebe3', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Mono',monospace", padding: '6px 10px', borderRadius: '8px', opacity: 0.6 }
+  iconBtn: { background: 'none', border: 'none', color: '#f0ebe3', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Mono',monospace", padding: '6px 10px', borderRadius: '8px', opacity: 1 }
 }
 
 export default function App() {
