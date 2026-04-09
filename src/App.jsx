@@ -27,11 +27,6 @@ const GRADE_COLOR = {
 
 const GREEN = '#1db954'
 
-function extractAlbumId(url) {
-  const m = url.match(/album\/([a-zA-Z0-9]+)/)
-  return m ? m[1] : null
-}
-
 function formatTime(ms) {
   const s = Math.floor(ms / 1000)
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
@@ -46,104 +41,71 @@ function saveSession(at, rt) { try { localStorage.setItem('wax_s', JSON.stringif
 function loadSession() { try { return JSON.parse(localStorage.getItem('wax_s') || 'null') } catch { return null } }
 function clearSession() { try { localStorage.removeItem('wax_s') } catch {} }
 
-// Generate shareable taste card image
 async function generateTasteCard(user, history, scorecard) {
   const canvas = document.createElement('canvas')
   canvas.width = 1080
   canvas.height = 1080
   const ctx = canvas.getContext('2d')
-
-  // Background
   ctx.fillStyle = '#0d0d0d'
   ctx.fillRect(0, 0, 1080, 1080)
-
-  // Gradient overlay
   const grad = ctx.createRadialGradient(200, 200, 0, 200, 200, 800)
   grad.addColorStop(0, 'rgba(29,185,84,0.15)')
   grad.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, 1080, 1080)
-
-  // WAX logo
   ctx.fillStyle = '#f0ebe3'
   ctx.font = 'bold 96px serif'
   ctx.fillText('WAX', 80, 130)
-
-  // Tagline
   ctx.fillStyle = 'rgba(240,235,227,0.4)'
   ctx.font = '32px monospace'
   ctx.fillText('TASTE PROFILE', 80, 180)
-
-  // User name
   ctx.fillStyle = '#f0ebe3'
   ctx.font = 'bold 48px serif'
   ctx.fillText(user?.name || 'Music Lover', 80, 280)
-
-  // Stats
-  const totalReviews = history.length
-  const allScores = history.map(h => h.final_score).filter(Boolean)
+  const cleanHistory = history.filter(h => h.final_grade && !h.final_grade.includes('*'))
+  const allScores = cleanHistory.map(h => h.final_score).filter(Boolean)
   const overallAvg = allScores.length ? avg(allScores) : 0
   const overallGrade = GRADE_FROM_SCORE(overallAvg)
   const topGenre = scorecard[0]?.genre || 'Eclectic'
-
-  // Overall grade — big
   ctx.fillStyle = GRADE_COLOR[overallGrade] || '#4ade80'
   ctx.font = 'bold 200px serif'
   ctx.fillText(overallGrade, 80, 560)
-
   ctx.fillStyle = 'rgba(240,235,227,0.5)'
   ctx.font = '36px monospace'
   ctx.fillText('OVERALL GRADE', 80, 610)
-
-  // Stats row
   ctx.fillStyle = '#f0ebe3'
   ctx.font = 'bold 64px serif'
-  ctx.fillText(totalReviews, 80, 740)
+  ctx.fillText(history.length, 80, 740)
   ctx.fillStyle = 'rgba(240,235,227,0.4)'
   ctx.font = '28px monospace'
   ctx.fillText('ALBUMS REVIEWED', 80, 780)
-
   ctx.fillStyle = '#f0ebe3'
   ctx.font = 'bold 64px serif'
   ctx.fillText(overallAvg + '/100', 400, 740)
   ctx.fillStyle = 'rgba(240,235,227,0.4)'
   ctx.font = '28px monospace'
   ctx.fillText('AVG SCORE', 400, 780)
-
-  // Top genre
   ctx.fillStyle = GREEN
   ctx.font = 'bold 48px serif'
   ctx.fillText(topGenre.toUpperCase(), 80, 880)
   ctx.fillStyle = 'rgba(240,235,227,0.4)'
   ctx.font = '28px monospace'
   ctx.fillText('TOP GENRE', 80, 920)
-
-  // Genre bars
   scorecard.slice(0, 4).forEach((item, i) => {
-    const x = 600
-    const y = 680 + i * 90
+    const x = 600, y = 680 + i * 90
     const col = GRADE_COLOR[item.grade] || '#4ade80'
     ctx.fillStyle = 'rgba(255,255,255,0.1)'
-    ctx.beginPath()
-    ctx.roundRect(x, y, 380, 12, 6)
-    ctx.fill()
+    ctx.beginPath(); ctx.roundRect(x, y, 380, 12, 6); ctx.fill()
     ctx.fillStyle = col
-    ctx.beginPath()
-    ctx.roundRect(x, y, (item.score / 100) * 380, 12, 6)
-    ctx.fill()
-    ctx.fillStyle = '#f0ebe3'
-    ctx.font = '26px monospace'
+    ctx.beginPath(); ctx.roundRect(x, y, (item.score / 100) * 380, 12, 6); ctx.fill()
+    ctx.fillStyle = '#f0ebe3'; ctx.font = '26px monospace'
     ctx.fillText(item.genre.slice(0, 18), x, y - 8)
-    ctx.fillStyle = col
-    ctx.font = 'bold 26px monospace'
+    ctx.fillStyle = col; ctx.font = 'bold 26px monospace'
     ctx.fillText(item.grade, x + 340, y - 8)
   })
-
-  // Footer
   ctx.fillStyle = 'rgba(240,235,227,0.2)'
   ctx.font = '24px monospace'
   ctx.fillText('wax.app · grade every track · know your taste', 80, 1020)
-
   return canvas.toDataURL('image/png')
 }
 
@@ -214,7 +176,7 @@ const css = {
   ghostBtn: { width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '14px', color: 'rgba(240,235,227,0.4)', fontSize: '14px', cursor: 'pointer', marginTop: '8px' },
   dangerBtn: { width: '100%', background: 'transparent', border: '1px solid rgba(248,113,113,0.3)', borderRadius: '14px', padding: '14px', color: '#f87171', fontSize: '14px', cursor: 'pointer', marginTop: '8px' },
   topBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', flexShrink: 0 },
-  iconBtn: { background: 'none', border: 'none', color: '#f0ebe3', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Mono',monospace", padding: '6px 10px', borderRadius: '8px', opacity: 1 }
+  iconBtn: { background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Mono',monospace", padding: '6px 10px', borderRadius: '8px', opacity: 1 }
 }
 
 export default function App() {
@@ -244,8 +206,11 @@ export default function App() {
   const hasPlayedRef = useRef(false)
   const seekTimerRef = useRef(null)
   const searchTimerRef = useRef(null)
+  const tokenRef = useRef(null)
 
   const { ready, isPlaying, position, duration, playTrack, togglePlay } = useSpotifyPlayer(accessToken)
+
+  useEffect(() => { tokenRef.current = accessToken }, [accessToken])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -268,22 +233,25 @@ export default function App() {
     fetch('/api/settings?spotify_user_id=' + spotifyUser.id).then(r => r.json()).then(d => { if (d.playback_mode) setPlaybackMode(d.playback_mode) }).catch(() => {})
   }, [spotifyUser])
 
-  // Auto-search with debounce
   useEffect(() => {
-    if (!searchQuery.trim() || !accessToken) { setSearchResults([]); return }
+    if (!searchQuery.trim()) { setSearchResults([]); return }
     clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(async () => {
+      const token = tokenRef.current
+      if (!token) return
       setSearching(true)
       try {
-        const r = await fetch('/api/search?q=' + encodeURIComponent(searchQuery) + '&at=' + accessToken)
+        const r = await fetch('/api/search?q=' + encodeURIComponent(searchQuery.trim()) + '&at=' + token)
         const d = await r.json()
         if (Array.isArray(d)) setSearchResults(d)
-      } catch {}
+        else setSearchResults([])
+      } catch {
+        setSearchResults([])
+      }
       setSearching(false)
     }, 400)
-  }, [searchQuery, accessToken])
+  }, [searchQuery])
 
-  // Play track with hook timing fix
   const playWithMode = useCallback(async (track, mode) => {
     if (!track) return
     const seekMs = mode === 'hook' && track.hook_ms ? track.hook_ms : 0
@@ -311,7 +279,8 @@ export default function App() {
     setLoadError('')
     setLoadingAlbum(true)
     try {
-      const r = await fetch('/api/album?id=' + albumResult.id + '&at=' + accessToken)
+      const token = tokenRef.current
+      const r = await fetch('/api/album?id=' + albumResult.id + '&at=' + token)
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Could not load album')
       setAlbum(d); setGrades({}); setCurrentIdx(0)
@@ -336,10 +305,10 @@ export default function App() {
   async function advanceOrFinish(newGrades) {
     if (currentIdx < album.tracks.length - 1) { setCurrentIdx(i => i + 1); return }
     const gradedOnly = Object.values(newGrades).filter(g => g !== 'skipped')
-    const hasSkipped = Object.values(newGrades).some(g => g === 'skipped')
+    const hasSkippedTracks = Object.values(newGrades).some(g => g === 'skipped')
     const vals = gradedOnly.map(g => g.score)
     const finalScore = vals.length ? avg(vals) : 0
-    const finalGrade = GRADE_FROM_SCORE(finalScore) + (hasSkipped ? '*' : '')
+    const finalGrade = GRADE_FROM_SCORE(finalScore) + (hasSkippedTracks ? '*' : '')
 
     if (spotifyUser) {
       try {
@@ -349,8 +318,7 @@ export default function App() {
             album_id: album.id, album_name: album.name, album_artist: album.artist,
             album_image: album.image, album_year: album.release_year,
             album_genres: album.genres || [],
-            final_score: finalScore,
-            final_grade: finalGrade,
+            final_score: finalScore, final_grade: finalGrade,
             track_grades: album.tracks.map((t, i) => {
               const g = newGrades[i]
               return { track_id: t.id, name: t.name, artists: t.artists, grade: g === 'skipped' ? 'skipped' : g?.label, score: g === 'skipped' ? null : g?.score }
@@ -380,7 +348,8 @@ export default function App() {
   async function handleGenerateWaxPicks() {
     setWaxPicksLoading(true); setWaxPicksError(''); setWaxPicksResult(null)
     try {
-      const r = await fetch('/api/recommendations?spotify_user_id=' + spotifyUser.id + '&at=' + accessToken, { method: 'POST' })
+      const token = tokenRef.current
+      const r = await fetch('/api/recommendations?spotify_user_id=' + spotifyUser.id + '&at=' + token, { method: 'POST' })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Failed')
       setWaxPicksResult(d)
@@ -391,7 +360,7 @@ export default function App() {
   async function handleGenerateTasteCard() {
     setGeneratingCard(true)
     try {
-      const dataUrl = await generateTasteCard(spotifyUser, history, scorecard())
+      const dataUrl = await generateTasteCard(spotifyUser, history, sc)
       const a = document.createElement('a')
       a.href = dataUrl; a.download = 'wax-taste-profile.png'; a.click()
     } catch (e) { console.error(e) }
@@ -401,8 +370,7 @@ export default function App() {
   async function handleReset() {
     try {
       await fetch('/api/grades?spotify_user_id=' + spotifyUser.id, { method: 'DELETE' })
-      setHistory([]); setPlaybackMode('hook'); setConfirmReset(false)
-      setWaxPicksResult(null)
+      setHistory([]); setPlaybackMode('hook'); setConfirmReset(false); setWaxPicksResult(null)
     } catch {}
   }
 
@@ -412,10 +380,16 @@ export default function App() {
     playTrack(album.tracks[currentIdx].uri, Math.floor(((e.clientX - rect.left) / rect.width) * duration))
   }
 
+  function handleLogout() {
+    clearSession(); setAccessToken(null); setRefreshToken(null)
+    setAlbum(null); setGrades({}); setSpotifyUser(null); setHistory([]); setPhase('login')
+  }
+
   function scorecard() {
     const map = {}
     history.forEach(r => {
-      if (!r.album_genres || !r.final_score) return
+      if (!r.album_genres || !r.final_score || !r.final_grade) return
+      if (r.final_grade.includes('*')) return
       r.album_genres.forEach(g => { if (!map[g]) map[g] = []; map[g].push(r.final_score) })
     })
     return Object.entries(map).map(([genre, scores]) => ({
@@ -434,18 +408,17 @@ export default function App() {
   const progress = duration > 0 ? (position / duration) * 100 : 0
   const currentGrade = grades[currentIdx]
   const gradedOnly = album ? Object.values(grades).filter(g => g !== 'skipped') : []
-  const hasSkipped = album ? Object.values(grades).some(g => g === 'skipped') : false
+  const hasSkippedTracks = album ? Object.values(grades).some(g => g === 'skipped') : false
   const finalScore = gradedOnly.length ? avg(gradedOnly.map(g => g.score)) : 0
-  const finalGradeLabel = GRADE_FROM_SCORE(finalScore) + (hasSkipped ? '*' : '')
+  const finalGradeLabel = GRADE_FROM_SCORE(finalScore) + (hasSkippedTracks ? '*' : '')
   const finalCol = GRADE_COLOR[GRADE_FROM_SCORE(finalScore)]
   const sc = scorecard()
-  const allScores = history.map(h => h.final_score).filter(Boolean)
-  const overallAvg = allScores.length ? avg(allScores) : 0
+  const cleanScores = history.filter(h => h.final_grade && !h.final_grade.includes('*')).map(h => h.final_score).filter(Boolean)
+  const overallAvg = cleanScores.length ? avg(cleanScores) : 0
 
   return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: '#0d0d0d' }}>
 
-      {/* LOGIN */}
       {phase === 'login' && (
         <div style={css.screen}>
           <div style={css.centerContent}>
@@ -467,38 +440,40 @@ export default function App() {
         </div>
       )}
 
-      {/* INPUT */}
       {phase === 'input' && (
         <div style={{ ...css.screen, overflowY: 'auto' }}>
           <div style={css.topBar}>
             <div style={css.logo}>WAX</div>
             <div style={{ display: 'flex', gap: '4px' }}>
               {history.length > 0 && <button onClick={() => setPhase('reviews')} style={css.iconBtn}>Reviews</button>}
-              <button onClick={() => handleLogout()} style={css.iconBtn}>Sign out</button>
+              <button onClick={handleLogout} style={css.iconBtn}>Sign out</button>
             </div>
           </div>
-
           <div style={{ padding: '0 24px 24px' }}>
-            {/* Search */}
             <div style={{ marginBottom: '20px' }}>
               <label style={css.inputLabel}>Search for an album</label>
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Artist or album name..." style={css.input} autoFocus />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Artist or album name..."
+                style={css.input}
+                autoFocus
+              />
               {loadError && <p style={{ color: '#f87171', fontSize: '13px', marginTop: '8px', fontFamily: "'DM Mono',monospace" }}>{loadError}</p>}
               {!ready && <p style={{ color: 'rgba(240,235,227,0.3)', fontSize: '12px', marginTop: '8px', fontFamily: "'DM Mono',monospace" }}>⏳ Connecting player...</p>}
             </div>
 
-            {/* Search results */}
             {searching && <p style={{ color: 'rgba(240,235,227,0.3)', fontSize: '13px', fontFamily: "'DM Mono',monospace", marginBottom: '16px' }}>Searching...</p>}
+
             {searchResults.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '24px' }}>
                 {searchResults.map(a => (
                   <div key={a.id} onClick={() => !loadingAlbum && handleSelectAlbum(a)}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-                    {a.image && <img src={a.image} alt={a.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', overflow: 'hidden', cursor: loadingAlbum ? 'not-allowed' : 'pointer', opacity: loadingAlbum ? 0.5 : 1, transition: 'border-color 0.15s' }}>
+                    {a.image && <img src={a.image} alt={a.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />}
                     <div style={{ padding: '10px' }}>
                       <div style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
-                      <div style={{ fontSize: '11px', color: '#fff', fontFamily: "'DM Mono',monospace", marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.artist}</div>
+                      <div style={{ fontSize: '11px', color: '#ffffff', fontFamily: "'DM Mono',monospace", marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.artist}</div>
                       <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono',monospace" }}>{a.year}</div>
                     </div>
                   </div>
@@ -506,7 +481,8 @@ export default function App() {
               </div>
             )}
 
-            {/* Playback mode — inline */}
+            {loadingAlbum && <p style={{ color: 'rgba(240,235,227,0.4)', fontSize: '13px', fontFamily: "'DM Mono',monospace", textAlign: 'center', marginBottom: '16px' }}>Loading album...</p>}
+
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span style={{ fontSize: '11px', fontFamily: "'DM Mono',monospace", color: 'rgba(240,235,227,0.3)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Playback Mode</span>
@@ -529,7 +505,7 @@ export default function App() {
             </div>
 
             {spotifyUser && (
-              <p style={{ fontSize: '12px', color: 'rgba(240,235,227,0.25)', fontFamily: "'DM Mono',monospace", textAlign: 'center', marginBottom: '8px' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(240,235,227,0.25)', fontFamily: "'DM Mono',monospace", textAlign: 'center' }}>
                 Signed in as {spotifyUser.name || spotifyUser.email}
               </p>
             )}
@@ -537,14 +513,15 @@ export default function App() {
         </div>
       )}
 
-      {/* GRADING */}
       {phase === 'grading' && album && track && (
         <div style={css.screen}>
           <div style={css.topBar}>
-            <button onClick={() => { if (currentIdx === 0) { setPhase('input') } else { setCurrentIdx(i => i - 1) } }}
-              style={{ ...css.iconBtn, opacity: 0.7 }}>← Back</button>
+            <button onClick={() => {
+              if (currentIdx === 0) { setAlbum(null); setGrades({}); hasPlayedRef.current = false; setPhase('input') }
+              else { setCurrentIdx(i => i - 1) }
+            }} style={{ ...css.iconBtn, opacity: 0.7 }}>← Back</button>
             <span style={{ fontFamily: "'DM Mono',monospace", fontSize: '12px', color: 'rgba(240,235,227,0.4)' }}>{currentIdx + 1} / {album.tracks.length}</span>
-            <button onClick={handleSkip} style={{ ...css.iconBtn, opacity: 0.5 }}>Skip →</button>
+            <button onClick={handleSkip} style={{ ...css.iconBtn, opacity: 0.7 }}>Skip →</button>
           </div>
 
           <div style={{ padding: '0 24px', marginBottom: '16px' }}>
@@ -565,7 +542,7 @@ export default function App() {
             <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px' }}>
               <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1.2, marginBottom: '3px' }}>{track.name}</div>
-                <div style={{ fontSize: '12px', color: '#fff', fontFamily: "'DM Mono',monospace" }}>{track.artists}</div>
+                <div style={{ fontSize: '12px', color: '#ffffff', fontFamily: "'DM Mono',monospace" }}>{track.artists}</div>
               </div>
               <div onClick={handleScrub} style={{ height: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', marginBottom: '12px', overflow: 'hidden', cursor: 'pointer' }}>
                 <div style={{ height: '100%', borderRadius: '6px', background: 'linear-gradient(90deg,' + GREEN + ',#4ade80)', width: progress + '%', transition: 'width 0.5s linear', pointerEvents: 'none' }} />
@@ -598,7 +575,6 @@ export default function App() {
         </div>
       )}
 
-      {/* RESULTS */}
       {phase === 'results' && album && (
         <div style={{ ...css.screen, overflowY: 'auto' }}>
           <div style={{ padding: '24px' }}>
@@ -619,7 +595,7 @@ export default function App() {
               <div style={{ fontSize: '11px', fontFamily: "'DM Mono',monospace", color: 'rgba(240,235,227,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '8px' }}>Your Score</div>
               <div style={{ fontSize: '72px', fontWeight: 800, color: finalCol, lineHeight: 1, marginBottom: '6px' }}>{finalGradeLabel}</div>
               <div style={{ fontSize: '16px', color: 'rgba(240,235,227,0.4)', fontFamily: "'DM Mono',monospace" }}>{finalScore} / 100</div>
-              {hasSkipped && <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono',monospace", marginTop: '6px' }}>* score excludes skipped tracks</div>}
+              {hasSkippedTracks && <div style={{ fontSize: '12px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono',monospace", marginTop: '6px' }}>* score excludes skipped tracks</div>}
             </div>
 
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', overflow: 'hidden', marginBottom: '16px' }}>
@@ -652,7 +628,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MY REVIEWS */}
       {phase === 'reviews' && (
         <div style={{ ...css.screen, overflowY: 'auto' }}>
           <div style={css.topBar}>
@@ -662,7 +637,6 @@ export default function App() {
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
-            {/* Analytics summary */}
             {history.length > 0 && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '20px', padding: '20px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '11px', fontFamily: "'DM Mono',monospace", color: 'rgba(240,235,227,0.3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '16px' }}>Your Taste Profile</div>
@@ -678,8 +652,6 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-
-                {/* Genre bars */}
                 {sc.slice(0, 5).map((item, i) => {
                   const col = GRADE_COLOR[item.grade]
                   return (
@@ -694,15 +666,12 @@ export default function App() {
                     </div>
                   )
                 })}
-
-                {/* Share card */}
                 <button onClick={handleGenerateTasteCard} disabled={generatingCard} style={{ ...css.primaryBtn, marginTop: '16px', opacity: generatingCard ? 0.6 : 1 }}>
                   {generatingCard ? 'Generating...' : '⬇ Download Taste Card'}
                 </button>
               </div>
             )}
 
-            {/* WAX Picks */}
             {history.length >= 3 && (
               <div style={{ background: 'rgba(29,185,84,0.06)', border: '1px solid rgba(29,185,84,0.2)', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: GREEN, marginBottom: '6px' }}>WAX Picks</div>
@@ -720,7 +689,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Album list */}
             {loadingHistory && <p style={{ color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono',monospace", fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>Loading...</p>}
             {!loadingHistory && history.length === 0 && <p style={{ color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono',monospace", fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>No reviews yet.</p>}
 
@@ -736,7 +704,7 @@ export default function App() {
                     {latest.album_image && <img src={latest.album_image} alt={latest.album_name} style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{latest.album_name}</div>
-                      <div style={{ fontSize: '12px', color: '#fff', fontFamily: "'DM Mono',monospace" }}>{latest.album_artist} · {latest.album_year}</div>
+                      <div style={{ fontSize: '12px', color: '#ffffff', fontFamily: "'DM Mono',monospace" }}>{latest.album_artist} · {latest.album_year}</div>
                       <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.25)', fontFamily: "'DM Mono',monospace", marginTop: '2px' }}>
                         {entries.length > 1 ? entries.length + ' reviews · tap to expand' : new Date(latest.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
@@ -782,7 +750,6 @@ export default function App() {
               )
             })}
 
-            {/* Reset */}
             {history.length > 0 && (
               <div style={{ marginTop: '24px' }}>
                 {!confirmReset ? (
@@ -804,10 +771,4 @@ export default function App() {
 
     </div>
   )
-
-  function handleLogout() {
-    clearSession(); setAccessToken(null); setRefreshToken(null)
-    setAlbum(null); setGrades({}); setSpotifyUser(null)
-    setHistory([]); setPhase('login')
-  }
 }
