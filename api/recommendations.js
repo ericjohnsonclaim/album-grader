@@ -22,12 +22,12 @@ export default async function handler(req, res) {
       .from('grades')
       .select('*')
       .eq('spotify_user_id', spotify_user_id)
-      .order('created_at', { ascending: false })
+      .order('final_score', { ascending: false })
 
     if (error) return res.status(500).json({ error: error.message })
     if (!grades || grades.length === 0) return res.status(400).json({ error: 'No grades yet' })
 
-    // Build seed tracks from top graded tracks
+    // Try track seeds first
     const trackScores = {}
     grades.forEach(function(review) {
       if (!review.track_grades) return
@@ -44,15 +44,28 @@ export default async function handler(req, res) {
       .slice(0, 5)
       .map(function(t) { return t[0] })
 
-    if (topTracks.length === 0) return res.status(400).json({ error: 'No graded tracks with IDs found. Try grading a few more albums first.' })
+    // Fall back to artist seeds if no track IDs
+    let seedParams = {}
+    if (topTracks.length >= 2) {
+      seedParams.seed_tracks = topTracks.join(',')
+    } else {
+      // Get top artists from highest rated albums
+      const artistIds = []
+      for (const review of grades.slice(0, 5)) {
+        const albumRes = await fetch('https://api.spotify.com/v1/albums/' + review.album_id, { headers })
+        if (albumRes.ok) {
+          const album = await albumRes.json()
+          album.artists.forEach(function(a) {
+            if (!artistIds.includes(a.id)) artistIds.push(a.id)
+          })
+        }
+        if (artistIds.length >= 3) break
+      }
+      if (artistIds.length === 0) return res.status(400).json({ error: 'Not enough data yet — grade a few more albums first.' })
+      seedParams.seed_artists = artistIds.slice(0, 5).join(',')
+    }
 
-    // Get recommendations
-    const recParams = new URLSearchParams({
-      seed_tracks: topTracks.join(','),
-      limit: 30,
-      min_popularity: 20
-    })
-
+    const recParams = new URLSearchParams({ ...seedParams, limit: 30, min_popularity: 20 })
     const recRes = await fetch('https://api.spotify.com/v1/recommendations?' + recParams, { headers })
     if (!recRes.ok) {
       const e = await recRes.json()
@@ -61,7 +74,6 @@ export default async function handler(req, res) {
     const recData = await recRes.json()
     const trackUris = recData.tracks.map(function(t) { return t.uri })
 
-    // Get or create WAX Picks playlist
     const userRes = await fetch('https://api.spotify.com/v1/me', { headers })
     const user = await userRes.json()
 
@@ -71,20 +83,14 @@ export default async function handler(req, res) {
 
     if (!playlist) {
       const createRes = await fetch('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          name: 'WAX Picks',
-          description: 'Recommendations powered by your WAX album reviews.',
-          public: true
-        })
+        method: 'POST', headers,
+        body: JSON.stringify({ name: 'WAX Picks', description: 'Recommendations powered by your WAX album reviews.', public: true })
       })
       playlist = await createRes.json()
     }
 
     await fetch('https://api.spotify.com/v1/playlists/' + playlist.id + '/tracks', {
-      method: 'PUT',
-      headers,
+      method: 'PUT', headers,
       body: JSON.stringify({ uris: trackUris })
     })
 
@@ -93,7 +99,6 @@ export default async function handler(req, res) {
       playlist_url: 'https://open.spotify.com/playlist/' + playlist.id,
       track_count: trackUris.length
     })
-
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
