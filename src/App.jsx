@@ -258,7 +258,7 @@ export default function App() {
     await playTrack(track.uri, 0)
     if (seekMs > 0) {
       clearTimeout(seekTimerRef.current)
-      seekTimerRef.current = setTimeout(() => playTrack(track.uri, seekMs), 800)
+      seekTimerRef.current = setTimeout(() => playTrack(track.uri, seekMs), 1500)
     }
   }, [playTrack])
 
