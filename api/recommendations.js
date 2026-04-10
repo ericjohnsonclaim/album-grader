@@ -27,7 +27,13 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message })
     if (!grades || grades.length === 0) return res.status(400).json({ error: 'No grades yet' })
 
-    // Try track seeds first
+    // Only use fully reviewed albums (no asterisk)
+    const cleanGrades = grades.filter(g => g.final_grade && !g.final_grade.includes('*'))
+
+    // Calculate track count: 2 per album reviewed, min 6, max 30
+    const trackCount = Math.min(Math.max(cleanGrades.length * 2, 6), 30)
+
+    // Build seed tracks from top graded tracks
     const trackScores = {}
     grades.forEach(function(review) {
       if (!review.track_grades) return
@@ -44,62 +50,105 @@ export default async function handler(req, res) {
       .slice(0, 5)
       .map(function(t) { return t[0] })
 
-    // Fall back to artist seeds if no track IDs
     let seedParams = {}
     if (topTracks.length >= 2) {
       seedParams.seed_tracks = topTracks.join(',')
     } else {
-      // Get top artists from highest rated albums
+      // Fall back to artist seeds from top albums
       const artistIds = []
-      for (const review of grades.slice(0, 5)) {
-        const albumRes = await fetch('https://api.spotify.com/v1/albums/' + review.album_id, { headers })
-        if (albumRes.ok) {
-          const album = await albumRes.json()
-          album.artists.forEach(function(a) {
-            if (!artistIds.includes(a.id)) artistIds.push(a.id)
-          })
-        }
+      for (const review of cleanGrades.slice(0, 5)) {
+        try {
+          const albumRes = await fetch('https://api.spotify.com/v1/albums/' + review.album_id, { headers })
+          if (albumRes.ok) {
+            const album = await albumRes.json()
+            if (album.artists) {
+              album.artists.forEach(function(a) {
+                if (!artistIds.includes(a.id)) artistIds.push(a.id)
+              })
+            }
+          }
+        } catch {}
         if (artistIds.length >= 3) break
       }
-      if (artistIds.length === 0) return res.status(400).json({ error: 'Not enough data yet — grade a few more albums first.' })
+      if (artistIds.length === 0) {
+        return res.status(400).json({ error: 'Grade a few more albums first to get recommendations.' })
+      }
       seedParams.seed_artists = artistIds.slice(0, 5).join(',')
     }
 
-    const recParams = new URLSearchParams({ ...seedParams, limit: 30, min_popularity: 20 })
-    const recRes = await fetch('https://api.spotify.com/v1/recommendations?' + recParams, { headers })
-    if (!recRes.ok) {
-      const e = await recRes.json()
-      return res.status(recRes.status).json({ error: e.error?.message || 'Recommendations failed' })
+    const recParams = new URLSearchParams({
+      ...seedParams,
+      limit: String(trackCount),
+      min_popularity: '20'
+    })
+
+    const recRes = await fetch('https://api.spotify.com/v1/recommendations?' + recParams.toString(), { headers })
+    const recText = await recRes.text()
+
+    let recData
+    try {
+      recData = JSON.parse(recText)
+    } catch {
+      return res.status(500).json({ error: 'Spotify returned invalid response' })
     }
-    const recData = await recRes.json()
+
+    if (!recRes.ok) {
+      return res.status(recRes.status).json({ error: recData.error?.message || 'Recommendations failed' })
+    }
+
+    if (!recData.tracks || recData.tracks.length === 0) {
+      return res.status(400).json({ error: 'No recommendations found. Try grading more albums.' })
+    }
+
     const trackUris = recData.tracks.map(function(t) { return t.uri })
 
+    // Get Spotify user
     const userRes = await fetch('https://api.spotify.com/v1/me', { headers })
-    const user = await userRes.json()
+    const userText = await userRes.text()
+    let user
+    try { user = JSON.parse(userText) } catch {
+      return res.status(500).json({ error: 'Could not get Spotify user' })
+    }
+    if (!userRes.ok) return res.status(401).json({ error: 'Spotify auth expired — sign out and back in.' })
 
+    // Find or create WAX Picks playlist
     const playlistsRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers })
-    const playlistsData = await playlistsRes.json()
+    const playlistsText = await playlistsRes.text()
+    let playlistsData
+    try { playlistsData = JSON.parse(playlistsText) } catch { playlistsData = { items: [] } }
+
     let playlist = (playlistsData.items || []).find(function(p) { return p.name === 'WAX Picks' })
 
     if (!playlist) {
       const createRes = await fetch('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
         method: 'POST', headers,
-        body: JSON.stringify({ name: 'WAX Picks', description: 'Recommendations powered by your WAX album reviews.', public: true })
+        body: JSON.stringify({
+          name: 'WAX Picks',
+          description: 'Recommendations powered by your WAX album reviews. ' + cleanGrades.length + ' albums · ' + trackCount + ' tracks',
+          public: true
+        })
       })
-      playlist = await createRes.json()
+      const createText = await createRes.text()
+      try { playlist = JSON.parse(createText) } catch {
+        return res.status(500).json({ error: 'Could not create playlist' })
+      }
     }
 
-    await fetch('https://api.spotify.com/v1/playlists/' + playlist.id + '/tracks', {
+    // Update playlist tracks
+    const updateRes = await fetch('https://api.spotify.com/v1/playlists/' + playlist.id + '/tracks', {
       method: 'PUT', headers,
       body: JSON.stringify({ uris: trackUris })
     })
+    if (!updateRes.ok) return res.status(500).json({ error: 'Could not update playlist' })
 
     return res.json({
       playlist_id: playlist.id,
       playlist_url: 'https://open.spotify.com/playlist/' + playlist.id,
-      track_count: trackUris.length
+      track_count: trackUris.length,
+      albums_used: cleanGrades.length
     })
+
   } catch (e) {
-    return res.status(500).json({ error: e.message })
+    return res.status(500).json({ error: e.message || 'Unknown error' })
   }
 }
