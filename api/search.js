@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   try {
     const r = await fetch(
-      'https://api.spotify.com/v1/search?q=' + encodeURIComponent(q) + '&type=album&limit=12&market=US',
+      'https://api.spotify.com/v1/search?q=' + encodeURIComponent(q) + '&type=album&limit=10&market=US',
       { headers: { 'Authorization': 'Bearer ' + at } }
     )
     const data = await r.json()
