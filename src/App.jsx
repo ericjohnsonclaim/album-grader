@@ -252,9 +252,16 @@ export default function App() {
     }, 400)
   }, [searchQuery])
 
-  const playWithMode = useCallback(async (track, mode) => {
+const playWithMode = useCallback(async (track, mode) => {
     if (!track) return
-    const seekMs = mode === 'hook' && track.hook_ms ? track.hook_ms : 0
+    let seekMs = 0
+    if (mode === 'hook') {
+      if (track.hook_ms) {
+        seekMs = track.hook_ms
+      } else if (track.duration_ms) {
+        seekMs = Math.floor(track.duration_ms / 3)
+      }
+    }
     await playTrack(track.uri, 0)
     if (seekMs > 0) {
       clearTimeout(seekTimerRef.current)
@@ -503,7 +510,24 @@ export default function App() {
                 })}
               </div>
             </div>
-
+{history.filter(h => h.final_grade && !h.final_grade.includes('*')).length >= 3 && (
+  <div style={{ background: 'rgba(29,185,84,0.06)', border: '1px solid rgba(29,185,84,0.2)', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
+    <div style={{ fontSize: '13px', fontWeight: 700, color: GREEN, marginBottom: '4px' }}>WAX Picks</div>
+    <p style={{ fontSize: '12px', color: 'rgba(240,235,227,0.5)', marginBottom: '12px', lineHeight: 1.5 }}>
+      {history.filter(h => h.final_grade && !h.final_grade.includes('*')).length * 2} tracks · based on your {history.filter(h => h.final_grade && !h.final_grade.includes('*')).length} reviewed albums
+    </p>
+    {waxPicksResult ? (
+      <a href={waxPicksResult.playlist_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+        <button style={{ ...css.greenBtn, marginTop: 0 }}><SpotifyIcon /> Open WAX Picks</button>
+      </a>
+    ) : (
+      <button onClick={handleGenerateWaxPicks} disabled={waxPicksLoading} style={{ ...css.greenBtn, marginTop: 0, opacity: waxPicksLoading ? 0.6 : 1 }}>
+        {waxPicksLoading ? 'Generating...' : '✦ Generate WAX Picks'}
+      </button>
+    )}
+    {waxPicksError && <p style={{ color: '#f87171', fontSize: '12px', marginTop: '8px', fontFamily: "'DM Mono',monospace" }}>{waxPicksError}</p>}
+  </div>
+)}
             {spotifyUser && (
               <p style={{ fontSize: '12px', color: 'rgba(240,235,227,0.25)', fontFamily: "'DM Mono',monospace", textAlign: 'center' }}>
                 Signed in as {spotifyUser.name || spotifyUser.email}
