@@ -262,12 +262,7 @@ const playWithMode = useCallback(async (track, mode) => {
         seekMs = Math.floor(track.duration_ms / 3)
       }
     }
-    await playTrack(track.uri, 0)
-    if (seekMs > 0) {
-      clearTimeout(seekTimerRef.current)
-      seekTimerRef.current = setTimeout(() => playTrack(track.uri, seekMs), 1500)
-    }
-  }, [playTrack])
+await playTrack(track.uri, seekMs)
 
   useEffect(() => {
     if (ready && album && phase === 'grading' && !hasPlayedRef.current) {
