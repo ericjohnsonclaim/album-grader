@@ -10,65 +10,46 @@ export default async function handler(req, res) {
 
   const spotifyHeaders = { 'Authorization': 'Bearer ' + at, 'Content-Type': 'application/json' }
   const anthropicKey = process.env.ANTHROPIC_API_KEY
-
-  if (!anthropicKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+  if (!anthropicKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured in Vercel environment variables' })
 
   try {
     const body = req.body
     const reviews = body.reviews || []
     const trackCount = Math.min(Math.max(reviews.length * 2, 6), 30)
-
     if (reviews.length === 0) return res.status(400).json({ error: 'No reviews provided' })
 
     // Build taste summary for Claude
     const tasteSummary = reviews.map(r => {
       const topTracks = (r.track_grades || [])
         .filter(t => t.grade && t.grade !== 'skipped' && t.score >= 87)
-        .map(t => t.name)
-        .slice(0, 3)
-      return `"${r.album_name}" by ${r.album_artist} (scored ${r.final_score}/100)${topTracks.length ? ', top tracks: ' + topTracks.join(', ') : ''}`
+        .map(t => t.name).slice(0, 3)
+      return '"' + r.album_name + '" by ' + r.album_artist + ' (scored ' + r.final_score + '/100)' + (topTracks.length ? ', standout tracks: ' + topTracks.join(', ') : '')
     }).join('\n')
 
-    // Ask Claude to recommend songs
+    // Ask Claude for recommendations
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         messages: [{
           role: 'user',
-          content: `You are a music expert. Based on this person's album reviews, recommend exactly ${trackCount} songs they would love.
-
-Their reviews:
-${tasteSummary}
-
-Rules:
-- Recommend songs similar in style, energy, and feel to their highly rated albums
-- Include a mix of well-known and deeper cuts
-- Vary the artists — don't repeat the same artist more than twice
-- Return ONLY a JSON array, no other text, like this:
-[{"artist": "Artist Name", "track": "Track Name"}, ...]
-
-Return exactly ${trackCount} recommendations.`
+          content: 'You are a music expert. Based on these album reviews, recommend exactly ' + trackCount + ' songs this person would love.\n\nReviews:\n' + tasteSummary + '\n\nRules:\n- Match the style, energy and vibe of their highly rated albums\n- Mix well-known songs with deeper cuts\n- No more than 2 songs per artist\n- Return ONLY a JSON array with no other text:\n[{"artist": "Artist Name", "track": "Track Name"}]\n\nReturn exactly ' + trackCount + ' songs.'
         }]
       })
     })
 
     const claudeData = await claudeRes.json()
-    if (!claudeRes.ok) return res.status(500).json({ error: 'Claude API error: ' + (claudeData.error?.message || 'unknown') })
+    if (!claudeRes.ok) return res.status(500).json({ error: 'Claude error: ' + (claudeData.error?.message || 'unknown') })
 
     const claudeText = claudeData.content?.[0]?.text || ''
     let recommendations
     try {
-      const jsonMatch = claudeText.match(/\[[\s\S]*\]/)
-      recommendations = JSON.parse(jsonMatch ? jsonMatch[0] : claudeText)
+      const match = claudeText.match(/\[[\s\S]*\]/)
+      recommendations = JSON.parse(match ? match[0] : claudeText)
     } catch {
-      return res.status(500).json({ error: 'Could not parse recommendations' })
+      return res.status(500).json({ error: 'Could not parse AI recommendations' })
     }
 
     // Search each track on Spotify
@@ -76,48 +57,54 @@ Return exactly ${trackCount} recommendations.`
     for (const rec of recommendations) {
       try {
         const q = encodeURIComponent(rec.track + ' ' + rec.artist)
-        const searchRes = await fetch('https://api.spotify.com/v1/search?q=' + q + '&type=track&limit=1&market=US', { headers: spotifyHeaders })
-        if (searchRes.ok) {
-          const searchData = await searchRes.json()
-          const track = searchData.tracks?.items?.[0]
-          if (track) trackUris.push(track.uri)
+        const r = await fetch('https://api.spotify.com/v1/search?q=' + q + '&type=track&limit=1&market=US', { headers: spotifyHeaders })
+        if (r.ok) {
+          const d = await r.json()
+          const uri = d.tracks?.items?.[0]?.uri
+          if (uri) trackUris.push(uri)
         }
       } catch {}
     }
 
-    if (trackUris.length === 0) return res.status(500).json({ error: 'Could not find any tracks on Spotify' })
+    if (trackUris.length === 0) return res.status(500).json({ error: 'Could not find tracks on Spotify' })
 
-    // Get Spotify user
+    // Get current user
     const userRes = await fetch('https://api.spotify.com/v1/me', { headers: spotifyHeaders })
-    const user = await userRes.json()
     if (!userRes.ok) return res.status(401).json({ error: 'Spotify auth expired — sign out and back in.' })
+    const user = await userRes.json()
+    if (!user.id) return res.status(401).json({ error: 'Could not get Spotify user ID' })
 
-    // Find or create WAX Picks playlist
-    const playlistsRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: spotifyHeaders })
-    const playlistsData = playlistsRes.ok ? await playlistsRes.json() : { items: [] }
-    let playlist = (playlistsData.items || []).find(p => p.name === 'WAX Picks')
-
-    if (!playlist) {
-      const createRes = await fetch('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
-        method: 'POST', headers: spotifyHeaders,
-        body: JSON.stringify({
-          name: 'WAX Picks',
-          description: 'Generated by WAX based on your taste profile.',
-          public: true
-        })
-      })
-      playlist = await createRes.json()
+    // Find existing WAX Picks or create new one
+    let playlistId = null
+    const plRes = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: spotifyHeaders })
+    if (plRes.ok) {
+      const plData = await plRes.json()
+      const existing = (plData.items || []).find(p => p.name === 'WAX Picks')
+      if (existing) playlistId = existing.id
     }
 
-    // Update playlist
-    await fetch('https://api.spotify.com/v1/playlists/' + playlist.id + '/tracks', {
+    if (!playlistId) {
+      const createRes = await fetch('https://api.spotify.com/v1/users/' + user.id + '/playlists', {
+        method: 'POST', headers: spotifyHeaders,
+        body: JSON.stringify({ name: 'WAX Picks', description: 'Generated by WAX based on your taste profile.', public: true })
+      })
+      if (!createRes.ok) return res.status(500).json({ error: 'Could not create WAX Picks playlist' })
+      const created = await createRes.json()
+      playlistId = created.id
+    }
+
+    if (!playlistId) return res.status(500).json({ error: 'Could not get playlist ID' })
+
+    // Replace playlist tracks
+    const updateRes = await fetch('https://api.spotify.com/v1/playlists/' + playlistId + '/tracks', {
       method: 'PUT', headers: spotifyHeaders,
       body: JSON.stringify({ uris: trackUris })
     })
+    if (!updateRes.ok) return res.status(500).json({ error: 'Could not update playlist tracks' })
 
     return res.json({
-      playlist_id: playlist.id,
-      playlist_url: 'https://open.spotify.com/playlist/' + playlist.id,
+      playlist_id: playlistId,
+      playlist_url: 'https://open.spotify.com/playlist/' + playlistId,
       track_count: trackUris.length
     })
 
