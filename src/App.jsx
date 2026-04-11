@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSpotifyPlayer } from './hooks/useSpotifyPlayer'
 
@@ -147,6 +148,7 @@ export default function App() {
   const [waxPicksError, setWaxPicksError] = useState('')
   const [generatingCard, setGeneratingCard] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [expandedReviews, setExpandedReviews] = useState({})
   const hasPlayedRef = useRef(false)
   const searchTimerRef = useRef(null)
   const tokenRef = useRef(null)
@@ -682,11 +684,12 @@ export default function App() {
             {!loadingHistory && sortedReviews(selectedArtist ? history.filter(h => h.album_artist === selectedArtist) : history).map((entry, i) => {
               const gradeBase = entry.final_grade?.replace('*', '')
               const col = GRADE_COLOR[gradeBase] || '#f0ebe3'
-              const [expanded, setExpanded] = useState(false)
+              const entryKey = entry.id || i
+              const isExpanded = !!expandedReviews[entryKey]
               return (
-                <div key={entry.id || i} style={{ marginBottom: '10px' }}>
-                  <div onClick={() => setExpanded(!expanded)}
-                    style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid ' + (expanded ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)'), borderRadius: expanded ? '16px 16px 0 0' : '16px', cursor: 'pointer' }}>
+                <div key={entryKey} style={{ marginBottom: '10px' }}>
+                  <div onClick={() => setExpandedReviews(prev => ({ ...prev, [entryKey]: !prev[entryKey] }))}
+                    style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid ' + (isExpanded ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)'), borderRadius: isExpanded ? '16px 16px 0 0' : '16px', cursor: 'pointer' }}>
                     {entry.album_image && <img src={entry.album_image} alt={entry.album_name} style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.album_name}</div>
@@ -700,7 +703,7 @@ export default function App() {
                       <div style={{ fontSize: '11px', color: 'rgba(240,235,227,0.3)', fontFamily: "'DM Mono',monospace" }}>{entry.final_score}/100</div>
                     </div>
                   </div>
-                  {expanded && entry.track_grades && (
+                  {isExpanded && entry.track_grades && (
                     <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', borderRadius: '0 0 16px 16px', overflow: 'hidden' }}>
                       {entry.track_grades.map((tg, k) => {
                         const tCol = tg.grade && tg.grade !== 'skipped' ? GRADE_COLOR[tg.grade] : null
